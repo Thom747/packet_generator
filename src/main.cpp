@@ -197,6 +197,12 @@ int main(int argc, char *argv[]) {
         exit(errno);
     }
 
+    if (setsockopt(socket_fd, SOL_IP, IP_TOS,
+                   &args.packet_tos, 1) < 0) {
+        perror("Cant set ToS");
+        exit(errno);
+    }
+
     msg_buffer = calloc(args.packet_size, sizeof(char));
     if (msg_buffer == nullptr) {
         perror("Can't calloc msg_buffer");
