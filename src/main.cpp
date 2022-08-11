@@ -22,11 +22,13 @@ struct arguments {
     uint8_t packet_tos;
     unsigned int timeout;
     bool verbose;
+    std::string interface;
 };
 
 volatile bool keyboard_interrupt{false};
 unsigned int packet_num{0};
 const int sock{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
+const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{0};
 void *msg_buffer;
 
@@ -50,13 +52,17 @@ struct arguments parse_args(int argc, char *argv[]) {
             .scan<'u', uint8_t>();
     parser.add_argument("-t", "--timeout")
             .help("Timeout to send packets for in whole seconds. If omitted or 0, runs indefinitely.")
-            .default_value((unsigned int) 0)
             .nargs(1)
+            .default_value((const unsigned int) 0)
             .scan<'u', unsigned int>();
     parser.add_argument("-v", "--verbose")
             .help("Print debugging information")
             .default_value(false)
             .implicit_value(true);
+    parser.add_argument("-i", "--interface")
+            .help("Interface to send packets over")
+            .nargs(1)
+            .default_value((const std::string) "");
 
     // Attempt to parse the arguments provided
     try {
@@ -74,8 +80,9 @@ struct arguments parse_args(int argc, char *argv[]) {
             parser.get<double>("packet_freq"),
             parser.get<unsigned int>("packet_size"),
             parser.get<uint8_t>("packet_tos"),
-            parser.get<unsigned int>("-t"),
-            parser.get<bool>("--verbose")
+            parser.get<unsigned int>("--timeout"),
+            parser.get<bool>("--verbose"),
+            parser.get("--interface")
     };
 
     if (res.verbose) {
@@ -88,6 +95,11 @@ struct arguments parse_args(int argc, char *argv[]) {
             std::cout << "Timeout in " << res.timeout << " seconds." << std::endl;
         else
             std::cout << "Timeout not specified, running indefinitely." << std::endl;
+        if (!res.interface.empty()) {
+            std::cout << "Binding to interface " << res.interface << "." << std::endl;
+        } else {
+            std::cout << "Not bound to an interface." << std::endl;
+        }
     }
 
     return res;
@@ -99,7 +111,7 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
 
     // Send packet
     printf("Sending packet %u\n", packet_num);
-    if (sendto(sock, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
+    if (sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
         perror("Failed to send packet");
     }
 
@@ -172,12 +184,18 @@ int set_and_start_timer(const struct arguments &args) {
 }
 
 int main(int argc, char *argv[]) {
-    if (sock < 0) {
+    if (socket_fd < 0) {
         perror("Can't open socket");
         exit(errno);
     }
 
     struct arguments args{parse_args(argc, argv)};
+
+    if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE,
+                   args.interface.c_str(), args.interface.length() + 1) < 0) {
+        perror("Can't bind to interface");
+        exit(errno);
+    }
 
     msg_buffer = calloc(args.packet_size, sizeof(char));
     if (msg_buffer == nullptr) {
@@ -191,7 +209,7 @@ int main(int argc, char *argv[]) {
 
     set_and_start_timer(args);
 
-    close(sock);
+    close(socket_fd);
     free(msg_buffer);
     return 0;
 }
