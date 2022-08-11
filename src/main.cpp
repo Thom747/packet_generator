@@ -27,7 +27,7 @@ struct arguments {
 
 volatile bool keyboard_interrupt{false};
 unsigned int packet_num{0};
-const int sock{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
+unsigned int succesful_packet_num{0};
 const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{0};
 void *msg_buffer;
@@ -113,6 +113,8 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
     printf("Sending packet %u\n", packet_num);
     if (sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
         perror("Failed to send packet");
+    } else {
+        succesful_packet_num++;
     }
 
     packet_num++;
@@ -128,7 +130,11 @@ void missed_alarm_handler([[maybe_unused]] int signum) {
 }
 
 void report_stats(std::chrono::duration<double, std::micro> duration) {
-    std::cout << "Ran for " << duration.count() / S_TO_US << " seconds, sent " << packet_num << " packets."
+    std::cout << "Ran for " << duration.count() / S_TO_US << " seconds." << std::endl
+              << "Attempted to send " << packet_num << " packets, of which " << succesful_packet_num << " (" << succesful_packet_num*100.0/packet_num
+              << "%) were successful." << std::endl
+              << "Attempt frequency: " << packet_num / (duration.count() / S_TO_US) << "Hz." << std::endl
+              << "Successful attempt frequency: " << succesful_packet_num / (duration.count() / S_TO_US) << "Hz."
               << std::endl;
 }
 
