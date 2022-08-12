@@ -31,7 +31,7 @@ volatile bool keyboard_interrupt{false};
 volatile uint32_t packet_num{0};
 uint32_t succesful_packet_num{0};
 const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
-sockaddr_in out_addr{0};
+sockaddr_in out_addr{};
 void *msg_buffer;
 
 struct arguments parse_args(int argc, char *argv[]) {
@@ -59,7 +59,7 @@ struct arguments parse_args(int argc, char *argv[]) {
     parser.add_argument("-t", "--timeout")
             .help("Timeout to send packets for in whole seconds. If omitted or 0, runs indefinitely.")
             .nargs(1)
-            .default_value((const unsigned int) 0)
+            .default_value((unsigned int) 0)
             .scan<'u', unsigned int>();
     parser.add_argument("-v", "--verbose")
             .help("Print debugging information")
@@ -68,11 +68,11 @@ struct arguments parse_args(int argc, char *argv[]) {
     parser.add_argument("-i", "--interface")
             .help("Interface to send packets over")
             .nargs(1)
-            .default_value((const std::string) "");
+            .default_value((std::string) "");
     parser.add_argument("-l", "--label")
             .help("Byte to label transmissions with")
             .nargs(1)
-            .default_value((const uint8_t) 0)
+            .default_value((uint8_t) 0)
             .scan<'u', uint8_t>();
 
     // Attempt to parse the arguments provided
@@ -146,7 +146,9 @@ void keyboard_interrupt_handler([[maybe_unused]] int signum) {
 
 void missed_alarm_handler([[maybe_unused]] int signum) {
     packet_num++;
-    write(1, "Missed alarm!\n", 14);
+    if (write(1, "Missed alarm!\n", 14) < 0) {
+        perror("Failed to write to stdout");
+    }
 }
 
 void report_stats(std::chrono::duration<double, std::micro> duration) {
