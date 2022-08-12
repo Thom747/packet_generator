@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <cstring>
 
 #include "argparse.h"
 
@@ -26,8 +27,8 @@ struct arguments {
 };
 
 volatile bool keyboard_interrupt{false};
-unsigned int packet_num{0};
-unsigned int succesful_packet_num{0};
+volatile uint32_t packet_num{0};
+uint32_t succesful_packet_num{0};
 const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{0};
 void *msg_buffer;
@@ -109,8 +110,15 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
     // Wait for interrupt
     sigwait(alarm_sig, signum);
 
+    // Fill buffer with packet_num
+    const uint32_t my_packet_num {packet_num};
+    {
+        const uint32_t network_packet_num {htonl(my_packet_num)};
+        std::memcpy(&(((char*)msg_buffer)[1]), &network_packet_num, 4);
+    }
+
     // Send packet
-    printf("Sending packet %u\n", packet_num);
+    printf("Sending packet %u\n", my_packet_num);
     if (sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
         perror("Failed to send packet");
     } else {
