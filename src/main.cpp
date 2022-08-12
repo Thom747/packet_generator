@@ -126,6 +126,7 @@ void keyboard_interrupt_handler([[maybe_unused]] int signum) {
 }
 
 void missed_alarm_handler([[maybe_unused]] int signum) {
+    packet_num++;
     write(1, "Missed alarm!\n", 14);
 }
 
