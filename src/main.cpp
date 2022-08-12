@@ -24,6 +24,7 @@ struct arguments {
     unsigned int timeout;
     bool verbose;
     std::string interface;
+    uint8_t label_byte;
 };
 
 volatile bool keyboard_interrupt{false};
@@ -36,7 +37,11 @@ void *msg_buffer;
 struct arguments parse_args(int argc, char *argv[]) {
     // Register arguments
     argparse::ArgumentParser parser("Packet Generator");
-    parser.add_description("Send UDP packets to a destination at a specific frequency.");
+    parser.add_description("Send UDP packets to a destination at a specific frequency.\n"
+                           "Packet structure:\n"
+                           "Label byte \t\t\t\t(1B)\n"
+                           "Packet sequence number \t(4B)\n"
+                           "Padding zero bytes \t\t(remaining bytes)");
     parser.add_argument("dest_IP")
             .help("IPv4 address to send packets to");
     parser.add_argument("dest_port")
@@ -64,6 +69,11 @@ struct arguments parse_args(int argc, char *argv[]) {
             .help("Interface to send packets over")
             .nargs(1)
             .default_value((const std::string) "");
+    parser.add_argument("-l", "--label")
+            .help("Byte to label transmissions with")
+            .nargs(1)
+            .default_value((const uint8_t) 0)
+            .scan<'u', uint8_t>();
 
     // Attempt to parse the arguments provided
     try {
@@ -83,15 +93,16 @@ struct arguments parse_args(int argc, char *argv[]) {
             parser.get<uint8_t>("packet_tos"),
             parser.get<unsigned int>("--timeout"),
             parser.get<bool>("--verbose"),
-            parser.get("--interface")
+            parser.get("--interface"),
+            parser.get<uint8_t>("--label"),
     };
 
     if (res.verbose) {
         std::cout << "Sending UDP packets to " << res.dest_ip << ":" << res.dest_port << " at " << res.packet_freq
                   << "Hz."
                   << std::endl;
-        std::cout << "Packet size is " << res.packet_size << "B and ToS is " << (unsigned int) res.packet_tos << "."
-                  << std::endl;
+        std::cout << "Packet size is " << res.packet_size << "B, ToS is " << (unsigned int) res.packet_tos
+                  << ", and label is " << (unsigned int) res.label_byte << "." << std::endl;
         if (res.timeout)
             std::cout << "Timeout in " << res.timeout << " seconds." << std::endl;
         else
@@ -111,10 +122,10 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
     sigwait(alarm_sig, signum);
 
     // Fill buffer with packet_num
-    const uint32_t my_packet_num {packet_num};
+    const uint32_t my_packet_num{packet_num};
     {
-        const uint32_t network_packet_num {htonl(my_packet_num)};
-        std::memcpy(&(((char*)msg_buffer)[1]), &network_packet_num, 4);
+        const uint32_t network_packet_num{htonl(my_packet_num)};
+        std::memcpy(&(((char *) msg_buffer)[1]), &network_packet_num, 4);
     }
 
     // Send packet
@@ -140,7 +151,8 @@ void missed_alarm_handler([[maybe_unused]] int signum) {
 
 void report_stats(std::chrono::duration<double, std::micro> duration) {
     std::cout << "Ran for " << duration.count() / S_TO_US << " seconds." << std::endl
-              << "Attempted to send " << packet_num << " packets, of which " << succesful_packet_num << " (" << succesful_packet_num*100.0/packet_num
+              << "Attempted to send " << packet_num << " packets, of which " << succesful_packet_num << " ("
+              << succesful_packet_num * 100.0 / packet_num
               << "%) were successful." << std::endl
               << "Attempt frequency: " << packet_num / (duration.count() / S_TO_US) << "Hz." << std::endl
               << "Successful attempt frequency: " << succesful_packet_num / (duration.count() / S_TO_US) << "Hz."
@@ -223,6 +235,7 @@ int main(int argc, char *argv[]) {
         perror("Can't calloc msg_buffer");
         exit(errno);
     }
+    ((uint8_t *) msg_buffer)[0] = args.label_byte;
 
     out_addr.sin_family = AF_INET;
     out_addr.sin_addr.s_addr = inet_addr(args.dest_ip.c_str());
