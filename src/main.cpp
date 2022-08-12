@@ -39,9 +39,9 @@ struct arguments parse_args(int argc, char *argv[]) {
     argparse::ArgumentParser parser("Packet Generator");
     parser.add_description("Send UDP packets to a destination at a specific frequency.\n"
                            "Packet structure:\n"
-                           "Label byte \t\t\t\t(1B)\n"
-                           "Packet sequence number \t(4B)\n"
-                           "Padding zero bytes \t\t(remaining bytes)");
+                           "Label byte               (1B)\n"
+                           "Packet sequence number   (4B)\n"
+                           "Padding zero bytes       (remaining bytes)");
     parser.add_argument("dest_IP")
             .help("IPv4 address to send packets to");
     parser.add_argument("dest_port")
