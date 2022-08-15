@@ -20,7 +20,7 @@ $(OBJ)/%.o: $(SRC)/%.cpp
 	$(CPP) $(CPPFLAGS) -c $^ -o $@
 
 clean:
-	rm -r $(OBJ) $(BIN)
+	rm -rf $(OBJ) $(BIN)
 
 $(OBJ):
 	mkdir $(OBJ)
