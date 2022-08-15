@@ -123,6 +123,7 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
 
     // Fill buffer with packet_num
     const uint32_t my_packet_num{packet_num};
+    packet_num++;
     {
         const uint32_t network_packet_num{htonl(my_packet_num)};
         std::memcpy(&(((char *) msg_buffer)[1]), &network_packet_num, 4);
@@ -136,7 +137,6 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
         succesful_packet_num++;
     }
 
-    packet_num++;
     return 0;
 }
 
