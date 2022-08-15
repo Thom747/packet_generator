@@ -187,6 +187,18 @@ auto set_and_start_timer(const struct arguments &args) -> int {
     // Handle missed alarms
     std::signal(SIGALRM, missed_alarm_handler);
 
+    // Upgrade process to RT
+    if (geteuid() == 0) {
+        std::cout << "Running as root, switching to SCHED_FIFO scheduler.\n" << std::endl;
+        const struct sched_param schedParam = {sched_get_priority_max(SCHED_FIFO)};
+        if (sched_setscheduler(0, SCHED_FIFO, &schedParam) < 0) {
+            perror("Failed to change to SCHED_FIFO scheduler");
+            exit(errno);
+        }
+    } else {
+        std::cout << "Not running as root, using default scheduler.\n" << std::endl;
+    }
+
     // Register alarm
     sigset_t alarm_sig;
     int signum{0};
