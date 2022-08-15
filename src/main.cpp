@@ -133,12 +133,15 @@ auto inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, in
 
     // Send packet
     auto pre_send_timestamp = std::chrono::system_clock::now();
-    if (sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
+    auto retval = sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr));
+    auto post_send_timestamp = std::chrono::system_clock::now();
+    if (retval < 0) {
         perror("Failed to send following packet");
     } else {
         successful_packet_num++;
     }
-    auto post_send_timestamp = std::chrono::system_clock::now();
+
+    // Report start and end times for transmit call
     std::cout << "Sent packet " << my_packet_num << ": start "
               << double(std::chrono::duration_cast<std::chrono::microseconds>(
                       pre_send_timestamp.time_since_epoch()).count()) / S_TO_US
