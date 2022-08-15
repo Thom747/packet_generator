@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Check compilation
+make clean all
+
+# Send 1000 packets to localhost over loopback interface to check for dynamic crashes
+./packet_generator "127.0.0.1" 9000 1000 400 184 --verbose --interface lo --label 64 --timeout 1
