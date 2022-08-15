@@ -1,7 +1,6 @@
 #include <iostream>
 #include <csignal>
-// Excluded as I can't find new setitimer in ctime
-#include <sys/time.h> // NOLINT(modernize-deprecated-headers)
+#include <sys/time.h> // NOLINT(modernize-deprecated-headers) // Excluded as I can't find new setitimer in ctime
 #include <cmath>
 #include <chrono>
 #include <unistd.h>
@@ -13,7 +12,9 @@
 #include "argparse.h"
 
 // Amount of microseconds in a second
-#define S_TO_US (1000000)
+enum {
+    S_TO_US = (1000000),
+};
 
 struct arguments {
     std::string dest_ip;
@@ -29,12 +30,12 @@ struct arguments {
 
 volatile bool keyboard_interrupt{false};
 volatile uint32_t packet_num{0};
-uint32_t succesful_packet_num{0};
+uint32_t successful_packet_num{0};
 const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{};
 void *msg_buffer;
 
-struct arguments parse_args(int argc, char *argv[]) {
+auto parse_args(int argc, char *argv[]) -> struct arguments { // NOLINT(modernize-avoid-c-arrays) // Disabled as argv has to be of dynamic length
     // Register arguments
     argparse::ArgumentParser parser("Packet Generator");
     parser.add_description("Send UDP packets to a destination at a specific frequency.\n"
@@ -117,7 +118,7 @@ struct arguments parse_args(int argc, char *argv[]) {
     return res;
 }
 
-int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int *signum) {
+auto inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int *signum) -> int {
     // Wait for interrupt
     sigwait(alarm_sig, signum);
 
@@ -134,7 +135,7 @@ int inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, int
     if (sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
         perror("Failed to send packet");
     } else {
-        succesful_packet_num++;
+        successful_packet_num++;
     }
 
     return 0;
@@ -153,15 +154,15 @@ void missed_alarm_handler([[maybe_unused]] int signum) {
 
 void report_stats(std::chrono::duration<double, std::micro> duration) {
     std::cout << "Ran for " << duration.count() / S_TO_US << " seconds." << std::endl
-              << "Attempted to send " << packet_num << " packets, of which " << succesful_packet_num << " ("
-              << succesful_packet_num * 100.0 / packet_num
+              << "Attempted to send " << packet_num << " packets, of which " << successful_packet_num << " ("
+              << successful_packet_num * 100.0 / packet_num
               << "%) were successful." << std::endl
               << "Attempt frequency: " << packet_num / (duration.count() / S_TO_US) << "Hz." << std::endl
-              << "Successful attempt frequency: " << succesful_packet_num / (duration.count() / S_TO_US) << "Hz."
+              << "Successful attempt frequency: " << successful_packet_num / (duration.count() / S_TO_US) << "Hz."
               << std::endl;
 }
 
-int set_and_start_timer(const struct arguments &args) {
+auto set_and_start_timer(const struct arguments &args) -> int {
     long us_per_packet{(long) floor(S_TO_US / args.packet_freq)};
     long s_per_packet{(long) us_per_packet / S_TO_US};
     us_per_packet -= s_per_packet * S_TO_US;
@@ -181,7 +182,8 @@ int set_and_start_timer(const struct arguments &args) {
     sigaddset(&alarm_sig, SIGALRM);
 
     // Create timer: https://stackoverflow.com/questions/25327519/how-to-send-udp-packet-every-1-ms
-    struct itimerval timer{0, us_per_packet, 0, 1000};
+    struct itimerval timer{{0, us_per_packet},
+                           {0, 1000}};
     if (setitimer(ITIMER_REAL, &timer, nullptr) < 0) {
         perror("Failed to set timer");
         exit(errno);
@@ -212,40 +214,46 @@ int set_and_start_timer(const struct arguments &args) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    if (socket_fd < 0) {
-        perror("Can't open socket");
-        exit(errno);
+auto main(int argc, char *argv[]) -> int {
+    try {
+        if (socket_fd < 0) {
+            perror("Can't open socket");
+            exit(errno);
+        }
+
+        struct arguments args{parse_args(argc, argv)};
+
+        if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE,
+                       args.interface.c_str(), args.interface.length() + 1) < 0) {
+            perror("Can't bind to interface");
+            exit(errno);
+        }
+
+        if (setsockopt(socket_fd, SOL_IP, IP_TOS,
+                       &args.packet_tos, 1) < 0) {
+            perror("Cant set ToS");
+            exit(errno);
+        }
+
+        msg_buffer = calloc(args.packet_size, sizeof(char));
+        if (msg_buffer == nullptr) {
+            perror("Can't calloc msg_buffer");
+            exit(errno);
+        }
+        ((uint8_t *) msg_buffer)[0] = args.label_byte;
+
+        out_addr.sin_family = AF_INET;
+        out_addr.sin_addr.s_addr = inet_addr(args.dest_ip.c_str());
+        out_addr.sin_port = htons(args.dest_port);
+
+        set_and_start_timer(args);
+
+        close(socket_fd);
+        free(msg_buffer);
+        return 0;
+    } catch (const std::exception &exception) {
+        std::cerr << exception.what() << std::endl;
+        std::exit(1);
     }
 
-    struct arguments args{parse_args(argc, argv)};
-
-    if (setsockopt(socket_fd, SOL_SOCKET, SO_BINDTODEVICE,
-                   args.interface.c_str(), args.interface.length() + 1) < 0) {
-        perror("Can't bind to interface");
-        exit(errno);
-    }
-
-    if (setsockopt(socket_fd, SOL_IP, IP_TOS,
-                   &args.packet_tos, 1) < 0) {
-        perror("Cant set ToS");
-        exit(errno);
-    }
-
-    msg_buffer = calloc(args.packet_size, sizeof(char));
-    if (msg_buffer == nullptr) {
-        perror("Can't calloc msg_buffer");
-        exit(errno);
-    }
-    ((uint8_t *) msg_buffer)[0] = args.label_byte;
-
-    out_addr.sin_family = AF_INET;
-    out_addr.sin_addr.s_addr = inet_addr(args.dest_ip.c_str());
-    out_addr.sin_port = htons(args.dest_port);
-
-    set_and_start_timer(args);
-
-    close(socket_fd);
-    free(msg_buffer);
-    return 0;
 }
