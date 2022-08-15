@@ -29,7 +29,7 @@ struct arguments {
 };
 
 volatile bool keyboard_interrupt{false};
-volatile uint32_t packet_num{1};
+volatile uint32_t packet_num{0};
 uint32_t successful_packet_num{0};
 const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{};
@@ -124,8 +124,8 @@ auto inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, in
     sigwait(alarm_sig, signum);
 
     // Fill buffer with packet_num
-    const uint32_t my_packet_num{packet_num};
     packet_num++;
+    const uint32_t my_packet_num{packet_num};
     {
         const uint32_t network_packet_num{htonl(my_packet_num)};
         std::memcpy(&(((char *) msg_buffer)[1]), &network_packet_num, 4);
