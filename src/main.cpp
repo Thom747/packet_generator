@@ -35,7 +35,8 @@ const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{};
 void *msg_buffer;
 
-auto parse_args(int argc, char *argv[]) -> struct arguments { // NOLINT(modernize-avoid-c-arrays) // Disabled as argv has to be of dynamic length
+auto parse_args(int argc,
+                char *argv[]) -> struct arguments { // NOLINT(modernize-avoid-c-arrays) // Disabled as argv has to be of dynamic length
     // Register arguments
     argparse::ArgumentParser parser("Packet Generator");
     parser.add_description("Send UDP packets to a destination at a specific frequency.\n"
@@ -131,12 +132,20 @@ auto inline await_and_send(const struct arguments &args, sigset_t *alarm_sig, in
     }
 
     // Send packet
-    printf("Sending packet %u\n", my_packet_num);
+    auto pre_send_timestamp = std::chrono::system_clock::now();
     if (sendto(socket_fd, msg_buffer, args.packet_size, 0, (sockaddr *) &out_addr, sizeof(out_addr)) < 0) {
-        perror("Failed to send packet");
+        perror("Failed to send following packet");
     } else {
         successful_packet_num++;
     }
+    auto post_send_timestamp = std::chrono::system_clock::now();
+    std::cout << "Sent packet " << my_packet_num << ": start "
+              << double(std::chrono::duration_cast<std::chrono::microseconds>(
+                      pre_send_timestamp.time_since_epoch()).count()) / S_TO_US
+              << ", end "
+              << double(std::chrono::duration_cast<std::chrono::microseconds>(
+                      post_send_timestamp.time_since_epoch()).count()) / S_TO_US
+              << std::endl;
 
     return 0;
 }
@@ -216,6 +225,9 @@ auto set_and_start_timer(const struct arguments &args) -> int {
 
 auto main(int argc, char *argv[]) -> int {
     try {
+        // Turn off scientific notation for std::cout
+        std::cout << std::fixed;
+
         if (socket_fd < 0) {
             perror("Can't open socket");
             exit(errno);
