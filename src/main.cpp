@@ -29,7 +29,7 @@ struct arguments {
 };
 
 volatile bool keyboard_interrupt{false};
-volatile uint32_t packet_num{0};
+volatile uint32_t packet_num{1};
 uint32_t successful_packet_num{0};
 const int socket_fd{socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0)};
 sockaddr_in out_addr{};
