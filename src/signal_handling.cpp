@@ -1,8 +1,8 @@
 #include "signal_handling.h"
 
+#include <csignal>
 #include <cstdio>
 #include <unistd.h>
-#include <csignal>
 
 extern volatile uint32_t packet_num;
 volatile bool keyboard_interrupt{false};

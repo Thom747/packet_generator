@@ -1,9 +1,9 @@
-#include "IntervalTimer.h"
 #include "constants.h"
+#include "IntervalTimer.h"
 
-#include <cstdlib>
-#include <cstdio> //perror
 #include <cerrno> //errno
+#include <cstdio> //perror
+#include <cstdlib>
 
 const itimerval stop_interval{{0, 0},
                               {0, 0}};

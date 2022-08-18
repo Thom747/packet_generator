@@ -1,16 +1,17 @@
-#include <iostream>
-#include <cmath>
-#include <chrono>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <cstring>
-
 #include "argparse.h"
 #include "constants.h"
-#include "signal_handling.h"
 #include "IntervalTimer.h"
+#include "signal_handling.h"
+
+#include <arpa/inet.h>
+#include <chrono>
+#include <cmath>
+#include <cstring>
+#include <iostream>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <sys/socket.h>
+
 
 struct arguments {
     std::string dest_ip;
@@ -125,11 +126,10 @@ auto inline await_and_send(const struct arguments &args, IntervalTimer &interval
 void report_stats(std::chrono::duration<double, std::micro> duration) {
     double successful_percent = successful_packet_num * 100.0 / packet_num;
     std::cout << "Ran for " << duration.count() / S_TO_US << " seconds." << std::endl << "Attempted to send "
-              << packet_num << " packets, of which " << successful_packet_num << " ("
-              << successful_percent << "%) were successful." << std::endl
-              << "Attempt frequency: " << packet_num / (duration.count() / S_TO_US) << "Hz." << std::endl
-              << "Successful attempt frequency: " << successful_packet_num / (duration.count() / S_TO_US) << "Hz."
-              << std::endl;
+              << packet_num << " packets, of which " << successful_packet_num << " (" << successful_percent
+              << "%) were successful." << std::endl << "Attempt frequency: "
+              << packet_num / (duration.count() / S_TO_US) << "Hz." << std::endl << "Successful attempt frequency: "
+              << successful_packet_num / (duration.count() / S_TO_US) << "Hz." << std::endl;
     if (successful_percent < 95) {
         std::cerr << "Less than 95% successful, aborting..." << std::endl;
         exit(-95);

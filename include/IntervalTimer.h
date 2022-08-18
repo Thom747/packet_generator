@@ -1,8 +1,8 @@
 #ifndef PACKET_GENERATOR_INTERVALTIMER_H
 #define PACKET_GENERATOR_INTERVALTIMER_H
 
-#include <sys/time.h>
 #include <csignal>
+#include <sys/time.h>
 
 /**
  * Timer that will unlock at a specific interval.
