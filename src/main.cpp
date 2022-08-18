@@ -8,13 +8,9 @@
 #include <cstring>
 
 #include "argparse.h"
+#include "constants.h"
 #include "signal_handling.h"
 #include "IntervalTimer.h"
-
-// Amount of microseconds in a second
-enum {
-    S_TO_US = (1000000),
-};
 
 struct arguments {
     std::string dest_ip;

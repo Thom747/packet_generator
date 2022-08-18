@@ -29,8 +29,9 @@ public:
      * Create an IntervalTimer, but do not start it.
      * @param seconds Seconds in each interval.
      * @param microseconds Microseconds in each interval.
+     * @param first_unlock_us Time until the first unlock in microseconds. Default 1000.
      */
-    IntervalTimer(long seconds, long microseconds);
+    IntervalTimer(long seconds, long microseconds, long first_unlock_us = 1000);
 
     /**
      * Start the timer.
