@@ -18,7 +18,7 @@ struct arguments {
     unsigned int dest_port;
     double packet_freq;
     unsigned int packet_size;
-    uint8_t packet_tos;
+    uint8_t packet_dscp;
     unsigned int timeout;
     bool verbose;
     std::string interface;
@@ -45,8 +45,8 @@ auto parse_args(int argc,
     parser.add_argument("dest_port").help("Port to send packets to").scan<'u', unsigned int>();
     parser.add_argument("packet_freq").help("Frequency in Hz to send packets").scan<'f', double>();
     parser.add_argument("packet_size").help("Size of packet payload in bytes").scan<'u', unsigned int>();
-    parser.add_argument("packet_tos").help(
-            "IP ToS code for packet, see https://www.speedguide.net/articles/quality-of-service-tos-dscp-wmm-3477").scan<'u', uint8_t>();
+    parser.add_argument("packet_dscp").help(
+            "IP DSCP code for packet, see https://www.speedguide.net/articles/quality-of-service-tos-dscp-wmm-3477").scan<'u', uint8_t>();
     parser.add_argument("-t", "--timeout").help(
             "Timeout to send packets for in whole seconds. If omitted or 0, runs indefinitely.").nargs(1).default_value(
             (unsigned int) 0).scan<'u', unsigned int>();
@@ -66,15 +66,16 @@ auto parse_args(int argc,
         std::exit(1);
     }
 
+    uint8_t dscp{(uint8_t) (parser.get<uint8_t>("packet_dscp") << 2)};
     struct arguments res{parser.get("dest_IP"), parser.get<unsigned int>("dest_port"),
-                         parser.get<double>("packet_freq"), parser.get<unsigned int>("packet_size"),
-                         parser.get<uint8_t>("packet_tos"), parser.get<unsigned int>("--timeout"),
-                         parser.get<bool>("--verbose"), parser.get("--interface"), parser.get<uint8_t>("--label"),};
+                         parser.get<double>("packet_freq"), parser.get<unsigned int>("packet_size"), dscp,
+                         parser.get<unsigned int>("--timeout"), parser.get<bool>("--verbose"),
+                         parser.get("--interface"), parser.get<uint8_t>("--label"),};
 
     if (res.verbose) {
         std::cout << "Sending UDP packets to " << res.dest_ip << ":" << res.dest_port << " at " << res.packet_freq
                   << "Hz." << std::endl;
-        std::cout << "Packet size is " << res.packet_size << "B, ToS is " << (unsigned int) res.packet_tos
+        std::cout << "Packet size is " << res.packet_size << "B, DSCP is " << (unsigned int) (res.packet_dscp >> 2)
                   << ", and label is " << (unsigned int) res.label_byte << "." << std::endl;
         if (res.timeout)
             std::cout << "Timeout in " << res.timeout << " seconds." << std::endl;
@@ -207,7 +208,7 @@ auto main(int argc, char *argv[]) -> int {
             exit(errno);
         }
 
-        if (setsockopt(socket_fd, SOL_IP, IP_TOS, &args.packet_tos, 1) < 0) {
+        if (setsockopt(socket_fd, SOL_IP, IP_TOS, &args.packet_dscp, 1) < 0) {
             perror("Cant set ToS");
             exit(errno);
         }
