@@ -23,6 +23,7 @@ struct arguments {
     bool verbose;
     std::string interface;
     uint8_t label_byte;
+    bool csv;
 };
 
 volatile uint32_t packet_num{0};
@@ -56,6 +57,8 @@ auto parse_args(int argc,
             (std::string) "");
     parser.add_argument("-l", "--label").help("Byte to label transmissions with").nargs(1).default_value(
             (uint8_t) 0).scan<'u', uint8_t>();
+    parser.add_argument("-c", "--csv").help("Output packet start and end times in csv format").default_value(
+            false).implicit_value(true);
 
     // Attempt to parse the arguments provided
     try {
@@ -70,7 +73,7 @@ auto parse_args(int argc,
     struct arguments res{parser.get("dest_IP"), parser.get<unsigned int>("dest_port"),
                          parser.get<double>("packet_freq"), parser.get<unsigned int>("packet_size"), dscp,
                          parser.get<unsigned int>("--timeout"), parser.get<bool>("--verbose"),
-                         parser.get("--interface"), parser.get<uint8_t>("--label"),};
+                         parser.get("--interface"), parser.get<uint8_t>("--label"), parser.get<bool>("--csv")};
 
     if (res.verbose) {
         std::cout << "Sending UDP packets to " << res.dest_ip << ":" << res.dest_port << " at " << res.packet_freq
@@ -114,11 +117,18 @@ auto inline await_and_send(const struct arguments &args, IntervalTimer &interval
     }
 
     // Report start and end times for transmit call
-    std::cout << "Sent packet " << my_packet_num << ": start " <<
-              double(std::chrono::duration_cast<std::chrono::microseconds>(
-                      pre_send_timestamp.time_since_epoch()).count()) / S_TO_US << ", end " <<
-              double(std::chrono::duration_cast<std::chrono::microseconds>(
-                      post_send_timestamp.time_since_epoch()).count()) / S_TO_US << std::endl;
+    if (args.csv) {
+        std::cout << my_packet_num << ", " << double(std::chrono::duration_cast<std::chrono::microseconds>(
+                pre_send_timestamp.time_since_epoch()).count()) / S_TO_US << ", " <<
+                  double(std::chrono::duration_cast<std::chrono::microseconds>(
+                          post_send_timestamp.time_since_epoch()).count()) / S_TO_US << std::endl;
+    } else {
+        std::cout << "Sent packet " << my_packet_num << ": start " <<
+                  double(std::chrono::duration_cast<std::chrono::microseconds>(
+                          pre_send_timestamp.time_since_epoch()).count()) / S_TO_US << ", end " <<
+                  double(std::chrono::duration_cast<std::chrono::microseconds>(
+                          post_send_timestamp.time_since_epoch()).count()) / S_TO_US << std::endl;
+    }
 
     return 0;
 }
