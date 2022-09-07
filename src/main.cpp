@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
 
 struct arguments {
@@ -164,7 +165,7 @@ auto set_and_start_timer(const struct arguments &args) -> int {
             std::cout << "Running as root, switching to SCHED_FIFO scheduler.\n" << std::endl;
         }
         const struct sched_param schedParam = {sched_get_priority_max(SCHED_FIFO)};
-        if (sched_setscheduler(0, SCHED_FIFO, &schedParam) < 0) {
+        if (pthread_setschedparam(pthread_self(), SCHED_FIFO, &schedParam) > 0) {
             perror("Failed to change to SCHED_FIFO scheduler");
             exit(errno);
         }

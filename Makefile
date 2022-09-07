@@ -1,5 +1,7 @@
 CPP=g++
-CPPFLAGS=-O3 -Wall -Wextra -Wpedantic -Werror -I$(INC) -std=c++17
+CPPFLAGS = -Werror
+override CPPFLAGS+=-O3 -Wall -Wextra -Wpedantic -I$(INC) -std=c++17 -pthread
+
 
 SRC=src
 INC=include
